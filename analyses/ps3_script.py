@@ -2,6 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import lightgbm as lgb
 from dask_ml.preprocessing import Categorizer
 from glum import GeneralizedLinearRegressor, TweedieDistribution
 from lightgbm import LGBMRegressor
@@ -330,11 +331,11 @@ param_grid = {
     'estimate__learning_rate':[0.01, 0.02, 0.05, 0.1, 0.2]
 }
 
-cv = GridSearchCV(constrained_lgbm, param_grid, cv=5)
-cv.fit(X_train_t, y_train_t, estimate__sample_weight=w_train_t)
+cv_constrained = GridSearchCV(constrained_lgbm, param_grid, cv=5)
+cv_constrained.fit(X_train_t, y_train_t, estimate__sample_weight=w_train_t)
 
-df_test["pp_t_lgbm_constrained"] = cv.best_estimator_.predict(X_test_t)
-df_train["pp_t_lgbm_constrained"] = cv.best_estimator_.predict(X_train_t)
+df_test["pp_t_lgbm_constrained"] = cv_constrained.best_estimator_.predict(X_test_t)
+df_train["pp_t_lgbm_constrained"] = cv_constrained.best_estimator_.predict(X_train_t)
 print(
     "training loss t_lgbm:  {}".format(
         TweedieDist.deviance(y_train_t, df_train["pp_t_lgbm_constrained"], sample_weight=w_train_t)
@@ -348,4 +349,29 @@ print(
         / np.sum(w_test_t)
     )
 )
+# %%
+# exercise 2
+
+best_est = cv_constrained.best_estimator_
+
+#retrain best model 
+# Create properly preprocessed data for evaluation that matches the pipeline
+X_train_pipeline = df[predictors].iloc[train]
+X_test_pipeline = df[predictors].iloc[test]
+
+# Get the preprocessor from the best estimator
+pipeline_preprocessor = best_est.named_steps['preprocessor']
+
+# Fit and transform the data using the same preprocessor as the pipeline
+X_train_transformed = pipeline_preprocessor.fit_transform(X_train_pipeline)
+X_test_transformed = pipeline_preprocessor.transform(X_test_pipeline)
+
+best_est.fit(X_train_pipeline, y_train_t, 
+            estimate__sample_weight=w_train_t,
+            estimate__eval_set=[(X_train_transformed, y_train_t), (X_test_transformed, y_test_t)],
+            estimate__eval_names=["train", "test"],
+            estimate__eval_metric="rmse")
+
+lgb.plot_metric(best_est['estimate'])
+plt.show()
 # %%
