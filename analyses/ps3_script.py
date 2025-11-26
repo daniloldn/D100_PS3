@@ -375,3 +375,8 @@ best_est.fit(X_train_pipeline, y_train_t,
 lgb.plot_metric(best_est['estimate'])
 plt.show()
 # %%
+from ps3.evaluation import evaluate_pred
+
+exposure = df["Exposure"].iloc[test]
+contrained = evaluate_pred(df_test["pp_t_lgbm_constrained"], y_test_t,exposure)
+# %%
