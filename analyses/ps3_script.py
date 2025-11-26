@@ -401,6 +401,31 @@ pdp_const = exp_const.model_profile(type='partial')
 
 pdp_const.plot()
 pdp_unconst.plot()
+#%%
 
+pdp_const.plot(pdp_unconst)
+
+# %%
+#exercise 5
+
+exp_glm = dx.Explainer(
+    t_glm1, X_test_t, y_test_t, label="GLM"
+)
+
+row = X_test_t.iloc[[0]]
+
+shap_lgbm = exp_const.predict_parts(
+    row,
+    type="shap"
+)
+
+shap_glm = exp_glm.predict_parts(
+    row,
+    type="shap"
+)
+
+shap_lgbm.plot()
+shap_glm.plot()
+shap_lgbm.plot(shap_glm)
 
 # %%
