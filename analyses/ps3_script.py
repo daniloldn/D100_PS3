@@ -375,8 +375,32 @@ best_est.fit(X_train_pipeline, y_train_t,
 lgb.plot_metric(best_est['estimate'])
 plt.show()
 # %%
+#exercise 3
 from ps3.evaluation import evaluate_pred
 
 exposure = df["Exposure"].iloc[test]
-contrained = evaluate_pred(df_test["pp_t_lgbm_constrained"], y_test_t,exposure)
+constrained = evaluate_pred(df_test["pp_t_lgbm_constrained"], y_test_t,exposure)
+unconstrained = evaluate_pred(df_test["pp_t_lgbm"], y_test_t,exposure)
+print(constrained.head())
+print(unconstrained.head())
+# %%
+#exercise 4
+
+import dalex as dx
+
+exp_const = dx.Explainer(
+    best_est, X_test_t, y_test_t, label="LGBM constrained"
+)
+
+exp_unconst = dx.Explainer(
+    cv.best_estimator_, X_test_t, y_test_t, label="LGBM unconstrained"
+)
+
+pdp_unconst = exp_unconst.model_profile(type='partial')
+pdp_const = exp_const.model_profile(type='partial')
+
+pdp_const.plot()
+pdp_unconst.plot()
+
+
 # %%
