@@ -17,6 +17,8 @@ from ps3.data import create_sample_split, load_transform
 # load data
 df = load_transform()
 
+df.head()
+
 # %%
 # Train benchmark tweedie model. This is entirely based on the glum tutorial.
 weight = df["Exposure"].values
@@ -228,10 +230,10 @@ print(
         np.sum(df["Exposure"].values[test] * df_test["pp_t_lgbm"]),
     )
 )
-# %%
+
 # Let's compare the sorting of the pure premium predictions
 
-
+#%%
 # Source: https://scikit-learn.org/stable/auto_examples/linear_model/plot_tweedie_regression_insurance_claims.html
 def lorenz_curve(y_true, y_pred, exposure):
     y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
@@ -278,4 +280,72 @@ ax.set(
 )
 ax.legend(loc="upper left")
 plt.plot()
+#%%
+#start of PS4
+#task 1
+print(df["BonusMalus"].unique())
 
+# %%
+
+bonus_group = np.sort(df["BonusMalus"].unique())
+avg_claim = df.groupby("BonusMalus")["PurePremium"].mean()
+
+
+plt.bar(bonus_group, avg_claim)
+plt.xlabel("BonusMalus group")
+plt.ylabel("Avg Claim")
+plt.title("Avg claim for each BonusMalus group")
+plt.show()
+
+#%%
+
+#print(X_train_t.shape)
+#print(X_train_t.columns)
+#print(np.where(X_train_t.columns == "BonusMalus"))
+
+#preprocessor.fit(df[predictors].iloc[train])
+#transformed_features = preprocessor.transform(df[predictors].iloc[train])
+#n_features = transformed_features.shape[1]
+
+#monotoncity_contrains = np.zeros(n_features)
+#print(np.where(transformed_features.columns.str.contains("BonusMalus")))
+#print(len(monotoncity_contrains))
+# %%
+
+monotoncity_contrains = np.zeros(61)
+monotoncity_contrains[49:55] = 1
+
+constrained_lgbm = Pipeline(
+    steps=[
+        ('preprocessor', preprocessor),
+        ('estimate', LGBMRegressor(objective='tweedie',
+                                    tweedie_variance_power=1.5,
+                                    monotone_constraints = monotoncity_contrains))
+    ]
+)
+
+
+param_grid = {
+    'estimate__n_estimators': [100, 200, 300],
+    'estimate__learning_rate':[0.01, 0.02, 0.05, 0.1, 0.2]
+}
+
+cv = GridSearchCV(constrained_lgbm, param_grid, cv=5)
+cv.fit(X_train_t, y_train_t, estimate__sample_weight=w_train_t)
+
+df_test["pp_t_lgbm_constrained"] = cv.best_estimator_.predict(X_test_t)
+df_train["pp_t_lgbm_constrained"] = cv.best_estimator_.predict(X_train_t)
+print(
+    "training loss t_lgbm:  {}".format(
+        TweedieDist.deviance(y_train_t, df_train["pp_t_lgbm_constrained"], sample_weight=w_train_t)
+        / np.sum(w_train_t)
+    )
+)
+
+print(
+    "testing loss t_lgbm:  {}".format(
+        TweedieDist.deviance(y_test_t, df_test["pp_t_lgbm_constrained"], sample_weight=w_test_t)
+        / np.sum(w_test_t)
+    )
+)
+# %%

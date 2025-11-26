@@ -30,16 +30,16 @@ def load_transform():
     # first row (=column names) uses "", all other rows use ''
     # use '' as quotechar as it is easier to change column names
     df = pd.read_csv(
-        "https://www.openml.org/data/get_csv/20649148/freMTPL2freq.arff", quotechar="'"
+        "hf://datasets/mabilton/fremtpl2/freMTPL2freq.csv"
     )
+
 
     # rename column names '"name"' => 'name'
     df = df.rename(lambda x: x.replace('"', ""), axis="columns")
     df["IDpol"] = df["IDpol"].astype(np.int64)
-    df.set_index("IDpol", inplace=True)
 
     df_sev = pd.read_csv(
-        "https://www.openml.org/data/get_csv/20649149/freMTPL2sev.arff", index_col=0
+        "hf://datasets/mabilton/fremtpl2/freMTPL2sev.csv"
     )
 
     # join ClaimAmount from df_sev to df:
@@ -47,7 +47,8 @@ def load_transform():
     #   2. aggregate ClaimAmount per IDpol
     #   3. join by IDpol
     df_sev["ClaimAmountCut"] = df_sev["ClaimAmount"].clip(upper=100_000)
-    df = df.join(df_sev.groupby(level=0).sum(), how="left")
+    df_sev_agg = df_sev.groupby("IDpol").sum()
+    df = df.merge(df_sev_agg, on="IDpol", how="left")
     df.fillna(value={"ClaimAmount": 0, "ClaimAmountCut": 0}, inplace=True)
 
     # Note: Zero claims must be ignored in severity models,
@@ -65,7 +66,5 @@ def load_transform():
         np.where(df["VehAge"] == 10, 9, df["VehAge"]), bins=[1, 10]
     )
     df["DrivAge"] = np.digitize(df["DrivAge"], bins=[21, 26, 31, 41, 51, 71])
-
-    df = df.reset_index()
 
     return df
